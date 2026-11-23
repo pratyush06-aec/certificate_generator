@@ -1,0 +1,14 @@
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+tests/
+exports/
+*.zip
+.DS_Store
+.cursorrules
+AGENTS.md
+CLAUDE.md
