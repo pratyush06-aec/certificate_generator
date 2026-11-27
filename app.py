@@ -19,12 +19,135 @@ from core.generator import (
 )
 from core.drive_uploader import automate_drive_export
 
-# Page configuration
+# Page configuration & SEO Metadata
 st.set_page_config(
-    page_title="Bulk Certificate Generator",
+    page_title="Bulk Certificate Generator — Free Online Certificate Maker & Google Drive Sync",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
+    menu_items={
+        "Get Help": "https://github.com/pratyush06-aec/certificate_generator",
+        "Report a bug": "https://github.com/pratyush06-aec/certificate_generator/issues",
+        "About": (
+            "### Bulk Certificate Generator\n"
+            "Free open-source web application to generate, preview, and export hundreds of customized "
+            "certificates in seconds from Excel/CSV with automated Google Drive integration.\n\n"
+            "**Author:** Pratyush\n"
+            "**Repo:** [GitHub](https://github.com/pratyush06-aec/certificate_generator)"
+        ),
+    },
+)
+
+# Inject Primary SEO Meta Tags, Social Cards (Open Graph / Twitter), and JSON-LD Schema
+st.markdown(
+    """
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="Bulk Certificate Generator — Free Online Certificate Maker & Google Drive Sync" />
+    <meta name="description" content="Generate hundreds of customized certificates in seconds from Excel/CSV sheets. Features real-time preview, automated template placeholder masking, 300 DPI PNG & PDF export, and 1-click Google Drive cloud sync. Free and mobile responsive." />
+    <meta name="keywords" content="bulk certificate generator, certificate generator, free certificate maker, excel to certificate, csv certificate generator, certificate maker google drive, bulk pdf certificates, event certificate generator, appreciation certificate maker" />
+    <meta name="author" content="Pratyush" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <link rel="canonical" href="https://bulkcertificate-generator.streamlit.app/" />
+
+    <!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bulkcertificate-generator.streamlit.app/" />
+    <meta property="og:title" content="Bulk Certificate Generator — Free Online Certificate Maker" />
+    <meta property="og:description" content="Generate hundreds of customized certificates in seconds from Excel or CSV with real-time preview and Google Drive sync." />
+    <meta property="og:image" content="https://raw.githubusercontent.com/pratyush06-aec/certificate_generator/main/assets/tech-start%20cert%20temp.png" />
+    <meta property="og:site_name" content="Bulk Certificate Generator" />
+
+    <!-- Twitter Cards -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://bulkcertificate-generator.streamlit.app/" />
+    <meta property="twitter:title" content="Bulk Certificate Generator — Free Online Certificate Maker" />
+    <meta property="twitter:description" content="Generate customized certificates in bulk from Excel/CSV with live preview and Google Drive automation." />
+    <meta property="twitter:image" content="https://raw.githubusercontent.com/pratyush06-aec/certificate_generator/main/assets/tech-start%20cert%20temp.png" />
+
+    <!-- Schema.org JSON-LD Structured Data for Search Engines -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Bulk Certificate Generator",
+      "url": "https://bulkcertificate-generator.streamlit.app/",
+      "description": "Generate high-resolution customized certificates in bulk from Excel/CSV spreadsheets with live preview, automated masking, and Google Drive upload.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Requires JavaScript. Requires HTML5.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Pratyush"
+      },
+      "featureList": [
+        "Bulk certificate generation from CSV or Excel",
+        "Live interactive certificate preview with custom typography",
+        "Automated template placeholder masking",
+        "Instant Google Drive folder creation and upload",
+        "Export to 300 DPI PNG, individual PDFs, or merged multi-page PDF",
+        "100% Mobile responsive layout across all aspect ratios"
+      ]
+    }
+    </script>
+
+    <!-- Attach tags to parent document.head for Streamlit Cloud iframe & direct bots -->
+    <script>
+      (function() {
+        try {
+          const targetDoc = window.parent.document !== document ? window.parent.document : document;
+          const head = targetDoc.head || document.head;
+          if (!head) return;
+
+          if (!targetDoc.title || targetDoc.title === "Streamlit") {
+            targetDoc.title = "Bulk Certificate Generator — Free Online Certificate Maker & Google Drive Sync";
+          }
+
+          const metaDefs = [
+            { name: "description", content: "Generate hundreds of customized certificates in seconds from Excel/CSV sheets. High-resolution PNG & PDF export with automated Google Drive integration. 100% free and mobile responsive." },
+            { name: "keywords", content: "bulk certificate generator, certificate maker, excel to certificate, free certificate generator, bulk pdf certificates, google drive certificate automation" },
+            { name: "author", content: "Pratyush" },
+            { name: "robots", content: "index, follow" },
+            { property: "og:type", content: "website" },
+            { property: "og:url", content: "https://bulkcertificate-generator.streamlit.app/" },
+            { property: "og:title", content: "Bulk Certificate Generator — Free Online Certificate Maker" },
+            { property: "og:description", content: "Generate hundreds of customized certificates in seconds from Excel or CSV with real-time preview and Google Drive sync." },
+            { property: "og:image", content: "https://raw.githubusercontent.com/pratyush06-aec/certificate_generator/main/assets/tech-start%20cert%20temp.png" },
+            { property: "twitter:card", content: "summary_large_image" },
+            { property: "twitter:title", content: "Bulk Certificate Generator — Free Online Certificate Maker" },
+            { property: "twitter:description", content: "Generate customized certificates in bulk from Excel/CSV with live preview and Google Drive automation." },
+            { property: "twitter:image", content: "https://raw.githubusercontent.com/pratyush06-aec/certificate_generator/main/assets/tech-start%20cert%20temp.png" }
+          ];
+
+          metaDefs.forEach(def => {
+            const key = def.name ? "name" : "property";
+            const val = def[key];
+            if (!head.querySelector(`meta[${key}="${val}"]`)) {
+              const meta = targetDoc.createElement("meta");
+              meta.setAttribute(key, val);
+              meta.setAttribute("content", def.content);
+              head.appendChild(meta);
+            }
+          });
+
+          if (!head.querySelector('link[rel="canonical"]')) {
+            const link = targetDoc.createElement("link");
+            link.rel = "canonical";
+            link.href = "https://bulkcertificate-generator.streamlit.app/";
+            head.appendChild(link);
+          }
+        } catch (e) {
+          // Cross-origin fallback
+        }
+      })();
+    </script>
+    """,
+    unsafe_allow_html=True,
 )
 
 # Initialize theme state if not set
@@ -120,16 +243,38 @@ st.markdown(
     f"""
     <style>
     /* Baseline typography & anti-aliasing */
+    html {{
+        -webkit-tap-highlight-color: transparent !important;
+        scroll-behavior: smooth;
+    }}
     html, body, [class*="css"] {{
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     }}
 
-    /* Overall page background */
+    /* Overall page background with dynamic viewport & safe areas */
     .stApp {{
         background-color: {bg_app} !important;
         color: {text_main} !important;
+        min-height: 100dvh !important;
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        padding-left: env(safe-area-inset-left, 0px) !important;
+        padding-right: env(safe-area-inset-right, 0px) !important;
+    }}
+
+    /* Prevent mobile browser auto-zoom on input focus */
+    input, select, textarea, div[data-baseweb="input"] input {{
+        font-size: 16px !important;
+    }}
+
+    /* Mobile touch target minimum sizing (44px) & tap feedback */
+    button, [role="button"], input[type="button"], input[type="submit"] {{
+        touch-action: manipulation !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        min-height: 44px !important;
     }}
 
     /* Headings */
@@ -219,9 +364,6 @@ st.markdown(
         border-radius: 8px !important;
         color: {text_main} !important;
     }}
-    .stSelectbox div[data-baseweb="select"]:hover > div {{
-        border-color: #2dd4bf !important;
-    }}
     .stSelectbox div[data-baseweb="select"] * {{
         color: {text_main} !important;
     }}
@@ -253,7 +395,7 @@ st.markdown(
         color: #2dd4bf !important;
     }}
 
-    /* Certificate Preview Canvas Frame */
+    /* Certificate Preview Canvas Frame - Fluid Aspect Ratio Containment */
     .cert-canvas-frame {{
         background-color: {bg_canvas};
         border: 1.5px solid {border_canvas};
@@ -265,8 +407,16 @@ st.markdown(
         justify-content: center;
         margin-top: 8px;
         margin-bottom: 8px;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
     }}
     .cert-canvas-frame img {{
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        object-fit: contain !important;
         border: {border_cert} !important;
         border-radius: 6px !important;
         box-shadow: {shadow_cert} !important;
@@ -278,9 +428,6 @@ st.markdown(
         border: 2px dashed {border_dropzone} !important;
         border-radius: 10px !important;
         transition: border-color 0.15s ease, background-color 0.15s ease;
-    }}
-    [data-testid="stFileUploaderDropzone"]:hover {{
-        border-color: #2dd4bf !important;
     }}
     [data-testid="stFileUploaderDropzoneInstructions"] * {{
         color: {text_main} !important;
@@ -294,10 +441,6 @@ st.markdown(
         border: 1.5px solid {sec_btn_border} !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
-    }}
-    [data-testid="stFileUploaderDropzone"] button:hover {{
-        background-color: #0f766e !important;
-        color: #ffffff !important;
     }}
     [data-testid="stFileUploaderFile"] {{
         background-color: {bg_card} !important;
@@ -323,9 +466,6 @@ st.markdown(
         color: {text_main} !important;
         font-weight: 600 !important;
     }}
-    [data-testid="stExpander"] summary:hover * {{
-        color: #2dd4bf !important;
-    }}
     [data-testid="stExpander"] summary svg {{
         fill: {text_main} !important;
         stroke: {text_main} !important;
@@ -350,9 +490,6 @@ st.markdown(
     }}
     [data-testid="stCodeBlock"] button {{
         color: {text_muted} !important;
-    }}
-    [data-testid="stCodeBlock"] button:hover {{
-        color: {text_main} !important;
     }}
 
     /* Inline Code */
@@ -385,12 +522,6 @@ st.markdown(
         box-shadow: 0 2px 4px rgba(15, 118, 110, 0.25) !important;
         transition: transform 0.1s ease, background-color 0.15s ease !important;
     }}
-    button[kind="primary"]:hover {{
-        background-color: #115e59 !important;
-    }}
-    button[kind="primary"]:active {{
-        transform: scale(0.97) !important;
-    }}
 
     /* Secondary Buttons */
     button[kind="secondary"] {{
@@ -401,11 +532,36 @@ st.markdown(
         font-weight: 600 !important;
         transition: transform 0.1s ease, background-color 0.15s ease !important;
     }}
-    button[kind="secondary"]:hover {{
-        background-color: #0f766e !important;
-        color: #ffffff !important;
+
+    /* Gate hover states behind pointing device capability to prevent sticky hover on touch */
+    @media (hover: hover) and (pointer: fine) {{
+        button[kind="primary"]:hover {{
+            background-color: #115e59 !important;
+        }}
+        button[kind="secondary"]:hover {{
+            background-color: #0f766e !important;
+            color: #ffffff !important;
+        }}
+        [data-testid="stFileUploaderDropzone"]:hover {{
+            border-color: #2dd4bf !important;
+        }}
+        [data-testid="stFileUploaderDropzone"] button:hover {{
+            background-color: #0f766e !important;
+            color: #ffffff !important;
+        }}
+        .stSelectbox div[data-baseweb="select"]:hover > div {{
+            border-color: #2dd4bf !important;
+        }}
+        [data-testid="stExpander"] summary:hover * {{
+            color: #2dd4bf !important;
+        }}
+        [data-testid="stCodeBlock"] button:hover {{
+            color: {text_main} !important;
+        }}
     }}
-    button[kind="secondary"]:active {{
+
+    /* Snappy active press feedback across all devices */
+    button:active, [role="button"]:active {{
         transform: scale(0.97) !important;
     }}
 
@@ -429,6 +585,65 @@ st.markdown(
     [data-testid="stAlert"] [data-testid="stMarkdownContainer"] p,
     [data-testid="stAlert"] [data-testid="stMarkdownContainer"] span {{
         color: {text_main} !important;
+    }}
+
+    /* Mobile & Tablet Responsive Breakpoints (handles all mobile aspect ratios) */
+    @media (max-width: 768px) {{
+        .block-container {{
+            padding-left: 0.85rem !important;
+            padding-right: 0.85rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 2rem !important;
+            max-width: 100% !important;
+        }}
+
+        /* Seamless column stacking on mobile screens */
+        [data-testid="column"] {{
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+            margin-bottom: 12px !important;
+        }}
+
+        /* Mobile responsive typography */
+        h1 {{
+            font-size: 1.65rem !important;
+            line-height: 1.25 !important;
+        }}
+        h2 {{
+            font-size: 1.35rem !important;
+        }}
+        h3 {{
+            font-size: 1.15rem !important;
+        }}
+
+        .cert-canvas-frame {{
+            padding: 8px !important;
+            border-radius: 10px !important;
+        }}
+
+        [data-testid="stFileUploaderDropzone"] {{
+            padding: 14px 10px !important;
+        }}
+    }}
+
+    /* Small phone screens (<= 480px, tall aspect ratios like 19.5:9, 20:9) */
+    @media (max-width: 480px) {{
+        .block-container {{
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"] {{
+            padding: 8px 6px !important;
+            border-radius: 10px !important;
+        }}
+        h1 {{
+            font-size: 1.45rem !important;
+        }}
+        .tabular-badge {{
+            font-size: 0.8rem !important;
+            padding: 2px 8px !important;
+        }}
     }}
     </style>
     """,
@@ -773,3 +988,40 @@ with st.container(border=True):
                     type="secondary" if auto_upload_drive else "primary",
                     use_container_width=True,
                 )
+
+
+# --- SEO & FREQUENTLY ASKED QUESTIONS (FAQ) ---
+with st.container(border=True):
+    with st.expander("❓ Frequently Asked Questions (FAQ) & How to Use", expanded=False):
+        st.markdown(
+            f"""
+            <div style="color: {text_main}; font-size: 0.95rem; line-height: 1.6;">
+                <h4>🎓 About Bulk Certificate Generator</h4>
+                <p>
+                    <b>Bulk Certificate Generator</b> is an open-source, high-performance web tool designed to automate 
+                    personalized certificate creation for events, workshops, hackathons, webinars, online courses, 
+                    and academic programs.
+                </p>
+                <hr style="border: 0; border-top: 1px solid {border_card}; margin: 16px 0;" />
+                <h5>⚡ How to generate certificates in bulk from Excel or CSV:</h5>
+                <ol>
+                    <li><b>Upload Spreadsheet:</b> Import an Excel (<code>.xlsx</code>, <code>.xls</code>) or CSV file with your participants' names.</li>
+                    <li><b>Customize Typography & Alignment:</b> Adjust font style, size, color, and vertical offset in real-time on the preview canvas.</li>
+                    <li><b>Automated Masking:</b> Automatically covers default placeholder names so new names render cleanly above the underline.</li>
+                    <li><b>1-Click Export & Cloud Sync:</b> Download a <code>.zip</code> of 300 DPI PNG images, individual PDFs, or a single combined PDF, or sync directly to Google Drive.</li>
+                </ol>
+                <hr style="border: 0; border-top: 1px solid {border_card}; margin: 16px 0;" />
+                <h5>📱 Mobile & Device Compatibility</h5>
+                <p>
+                    This app is optimized with fluid responsive styling for smartphones, tablets, foldables, and desktops 
+                    across all screen aspect ratios (16:9, 18:9, 19.5:9, 20:9) with touch-friendly 44px tap targets and safe-area insets.
+                </p>
+                <hr style="border: 0; border-top: 1px solid {border_card}; margin: 16px 0;" />
+                <h5>🔒 Privacy & Security</h5>
+                <p>
+                    Your participant data is processed in-memory during certificate generation and is never sold or permanently stored.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
