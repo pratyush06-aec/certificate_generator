@@ -7,6 +7,7 @@ Enhanced with interactive Light / Dark theme switching and high-contrast surface
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from pathlib import Path
 import streamlit as st
 from PIL import Image
@@ -16,6 +17,7 @@ from core.generator import (
     render_certificate,
     export_batch,
 )
+from core.drive_uploader import automate_drive_export
 
 # Page configuration
 st.set_page_config(
@@ -485,6 +487,30 @@ with st.container(border=True):
                 index=0,
             )
 
+            st.markdown("---")
+            st.markdown("#### ☁️ Google Drive Automation")
+            auto_upload_drive = st.checkbox(
+                "Auto-create folder & upload to Google Drive",
+                value=True,
+                help="Automatically creates a new batch folder in Google Drive and uploads the certificates.",
+            )
+
+            drive_folder_name = ""
+            parent_folder_id = ""
+            if auto_upload_drive:
+                default_name = f"Certificates_Batch_{datetime.now().strftime('%Y%m%d_%H%M')}"
+                drive_folder_name = st.text_input(
+                    "New Drive Folder Name:",
+                    value=default_name,
+                    help="Name of the dedicated folder to be created in Google Drive.",
+                )
+                default_parent = st.secrets.get("GDRIVE_PARENT_FOLDER_ID", "") if hasattr(st, "secrets") else ""
+                parent_folder_id = st.text_input(
+                    "Parent Drive Folder ID (Optional):",
+                    value=default_parent,
+                    help="Paste your shared Google Drive folder ID to keep certificates in a specific directory, or leave blank to create in root.",
+                )
+
         with export_col2:
             st.markdown(f"**Total Ready to Generate:** <span class='tabular-badge'>{len(names)} Certificates</span>", unsafe_allow_html=True)
             st.write("")
@@ -511,11 +537,54 @@ with st.container(border=True):
                 progress_bar.progress(100, text="Done! Ready for download.")
                 st.success(f"Generated {len(names)} certificates successfully!")
 
+                # --- Google Drive Automated Upload ---
+                if auto_upload_drive:
+                    has_secrets = False
+                    try:
+                        has_secrets = "gdrive_service_account" in st.secrets
+                    except Exception:
+                        has_secrets = False
+
+                    if has_secrets:
+                        try:
+                            with st.spinner("Creating Google Drive folder and uploading..."):
+                                drive_result = automate_drive_export(
+                                    file_bytes=buf,
+                                    filename=filename,
+                                    batch_folder_name=drive_folder_name or f"Certificates_{datetime.now().strftime('%Y%m%d')}",
+                                    credentials_info=dict(st.secrets["gdrive_service_account"]),
+                                    parent_folder_id=parent_folder_id or None,
+                                    mime_type=mime_type,
+                                )
+
+                            st.markdown(
+                                f"""
+                                <div style="background-color: {badge_bg}; border: 1.5px solid {badge_border}; border-radius: 10px; padding: 16px; margin: 16px 0;">
+                                    <h4 style="margin: 0 0 8px 0; color: {badge_color};">☁️ Uploaded to Google Drive Successfully!</h4>
+                                    <p style="margin: 0 0 12px 0; color: {text_main}; font-size: 0.95rem;">
+                                        📁 Created Folder: <b>{drive_result['folder_name']}</b><br>
+                                        📄 File: <code>{filename}</code>
+                                    </p>
+                                    <a href="{drive_result['folder_url']}" target="_blank" style="display: inline-block; background-color: #0f766e; color: #ffffff !important; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
+                                        📂 Open Folder in Google Drive ↗
+                                    </a>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                        except Exception as e:
+                            st.error(f"Google Drive upload encountered an error: {e}")
+                    else:
+                        st.info(
+                            "💡 **Google Drive Setup Required:** Add your Service Account credentials into "
+                            "`secrets.toml` to enable 1-click cloud sync."
+                        )
+
                 st.download_button(
                     label=f"⬇️ Download {filename} ({len(buf.getvalue()) / (1024 * 1024):.2f} MB)",
                     data=buf.getvalue(),
                     file_name=filename,
                     mime=mime_type,
-                    type="primary",
+                    type="secondary" if auto_upload_drive else "primary",
                     use_container_width=True,
                 )
