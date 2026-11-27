@@ -561,19 +561,23 @@ with st.container(border=True):
 
                             st.markdown(
                                 f"""
-                                <div style="background-color: {badge_bg}; border: 1.5px solid {badge_border}; border-radius: 10px; padding: 16px; margin: 16px 0;">
+                                <div style="background-color: {badge_bg}; border: 1.5px solid {badge_border}; border-radius: 10px; padding: 16px; margin: 16px 0 12px 0;">
                                     <h4 style="margin: 0 0 8px 0; color: {badge_color};">☁️ Uploaded to Google Drive Successfully!</h4>
-                                    <p style="margin: 0 0 12px 0; color: {text_main}; font-size: 0.95rem;">
-                                        📁 Created Folder: <b>{drive_result['folder_name']}</b><br>
+                                    <p style="margin: 0; color: {text_main}; font-size: 0.95rem;">
+                                        📁 Created Folder: <b>{drive_result['folder_name']}</b> &nbsp;|&nbsp; 
                                         📄 File: <code>{filename}</code>
                                     </p>
-                                    <a href="{drive_result['folder_url']}" target="_blank" style="display: inline-block; background-color: #0f766e; color: #ffffff !important; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
-                                        📂 Open Folder in Google Drive ↗
-                                    </a>
                                 </div>
                                 """,
                                 unsafe_allow_html=True,
                             )
+
+                            st.markdown("##### 📋 Copy-Pastable Public Drive Link:")
+                            st.code(drive_result["folder_url"], language="text")
+
+                            if drive_result.get("file_url") and drive_result["file_url"] != drive_result["folder_url"]:
+                                with st.expander("📄 Direct File Download Link", expanded=False):
+                                    st.code(drive_result["file_url"], language="text")
                         except Exception as e:
                             st.error(f"Google Drive upload encountered an error: {e}")
                     else:
