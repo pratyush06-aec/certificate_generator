@@ -74,6 +74,12 @@ if is_dark:
     warn_border = "#78350f"
     warn_text = "#fde68a"
     subtext_color = "#94a3b8"
+    input_bg = "#1e293b"
+    input_border = "#334155"
+    input_text = "#f8fafc"
+    code_bg = "#0c1322"
+    code_border = "#26354f"
+    code_text = "#38bdf8"
 else:
     bg_app = "#f1f5f9"
     bg_card = "#ffffff"
@@ -102,6 +108,12 @@ else:
     warn_border = "#fde68a"
     warn_text = "#92400e"
     subtext_color = "#475569"
+    input_bg = "#ffffff"
+    input_border = "#cbd5e1"
+    input_text = "#0f172a"
+    code_bg = "#f8fafc"
+    code_border = "#e2e8f0"
+    code_text = "#0f766e"
 
 # Inject Dynamic High-Contrast CSS
 st.markdown(
@@ -121,13 +133,30 @@ st.markdown(
     }}
 
     /* Headings */
-    h1, h2, h3, h4 {{
+    h1, h2, h3, h4, h5, h6 {{
         color: {text_main} !important;
         letter-spacing: -0.02em;
         font-weight: 700 !important;
     }}
     p, span, label {{
         color: {text_main} !important;
+    }}
+
+    /* All Streamlit widget labels */
+    [data-testid="stWidgetLabel"] *,
+    [data-testid="stWidgetLabel"] p,
+    [data-testid="stWidgetLabel"] label,
+    [data-testid="stWidgetLabel"] span {{
+        color: {text_main} !important;
+        font-weight: 600 !important;
+    }}
+
+    /* Helper captions & subtext */
+    [data-testid="stCaptionContainer"] *,
+    [data-testid="stCaptionContainer"] p,
+    [data-testid="stCaptionContainer"] span,
+    .stCaption {{
+        color: {text_muted} !important;
     }}
 
     /* Bordered containers as elevated cards */
@@ -145,11 +174,83 @@ st.markdown(
         background-color: {bg_sidebar} !important;
         border-right: 1.5px solid {border_sidebar} !important;
     }}
-    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
+    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h4 {{
         color: {text_main} !important;
     }}
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {{
         color: {text_main} !important;
+    }}
+
+    /* Text Inputs & Number Inputs */
+    div[data-baseweb="input"],
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="base-input"] {{
+        background-color: {input_bg} !important;
+        border: 1.5px solid {input_border} !important;
+        border-radius: 8px !important;
+    }}
+    div[data-baseweb="input"]:focus-within {{
+        border-color: #2dd4bf !important;
+    }}
+    div[data-baseweb="input"] input,
+    div[data-baseweb="base-input"] input {{
+        background-color: transparent !important;
+        color: {input_text} !important;
+        -webkit-text-fill-color: {input_text} !important;
+        font-weight: 500 !important;
+    }}
+
+    /* Sliders */
+    [data-testid="stSlider"] div[data-testid="stSliderThumbValue"],
+    [data-testid="stSliderTickBar"] *,
+    [data-testid="stSlider"] div[data-baseweb="slider"] div {{
+        color: {text_main} !important;
+    }}
+    [data-testid="stSliderTickBar"] div,
+    [data-testid="stSliderTickBar"] span {{
+        color: {text_muted} !important;
+        font-weight: 600 !important;
+    }}
+
+    /* Selectboxes & Dropdowns */
+    .stSelectbox div[data-baseweb="select"] > div {{
+        background-color: {input_bg} !important;
+        border: 1.5px solid {input_border} !important;
+        border-radius: 8px !important;
+        color: {text_main} !important;
+    }}
+    .stSelectbox div[data-baseweb="select"]:hover > div {{
+        border-color: #2dd4bf !important;
+    }}
+    .stSelectbox div[data-baseweb="select"] * {{
+        color: {text_main} !important;
+    }}
+    div[data-baseweb="select"] svg {{
+        fill: {text_main} !important;
+    }}
+
+    /* Dropdown popover menu list */
+    div[data-baseweb="popover"],
+    div[data-baseweb="popover"] ul,
+    div[data-baseweb="menu"],
+    ul[role="listbox"] {{
+        background-color: {bg_card} !important;
+        border: 1.5px solid {border_card} !important;
+        border-radius: 8px !important;
+    }}
+    li[role="option"] {{
+        background-color: {bg_card} !important;
+        color: {text_main} !important;
+    }}
+    li[role="option"] * {{
+        color: {text_main} !important;
+    }}
+    li[role="option"]:hover,
+    li[role="option"]:hover *,
+    li[aria-selected="true"],
+    li[aria-selected="true"] * {{
+        background-color: {border_card} !important;
+        color: #2dd4bf !important;
     }}
 
     /* Certificate Preview Canvas Frame */
@@ -179,10 +280,99 @@ st.markdown(
         transition: border-color 0.15s ease, background-color 0.15s ease;
     }}
     [data-testid="stFileUploaderDropzone"]:hover {{
-        border-color: #0f766e !important;
+        border-color: #2dd4bf !important;
     }}
-    [data-testid="stFileUploaderDropzone"] span, [data-testid="stFileUploaderDropzone"] small {{
+    [data-testid="stFileUploaderDropzoneInstructions"] * {{
+        color: {text_main} !important;
+    }}
+    [data-testid="stFileUploaderDropzone"] small {{
         color: {text_muted} !important;
+    }}
+    [data-testid="stFileUploaderDropzone"] button {{
+        background-color: {sec_btn_bg} !important;
+        color: {sec_btn_color} !important;
+        border: 1.5px solid {sec_btn_border} !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }}
+    [data-testid="stFileUploaderDropzone"] button:hover {{
+        background-color: #0f766e !important;
+        color: #ffffff !important;
+    }}
+    [data-testid="stFileUploaderFile"] {{
+        background-color: {bg_card} !important;
+        border: 1px solid {border_card} !important;
+        border-radius: 8px !important;
+    }}
+    [data-testid="stFileUploaderFile"] * {{
+        color: {text_main} !important;
+    }}
+
+    /* Expanders */
+    [data-testid="stExpander"] details {{
+        background-color: {bg_card} !important;
+        border: 1px solid {border_card} !important;
+        border-radius: 10px !important;
+    }}
+    [data-testid="stExpander"] summary {{
+        background-color: {bg_card} !important;
+        color: {text_main} !important;
+        border-radius: 10px !important;
+    }}
+    [data-testid="stExpander"] summary * {{
+        color: {text_main} !important;
+        font-weight: 600 !important;
+    }}
+    [data-testid="stExpander"] summary:hover * {{
+        color: #2dd4bf !important;
+    }}
+    [data-testid="stExpander"] summary svg {{
+        fill: {text_main} !important;
+        stroke: {text_main} !important;
+    }}
+    [data-testid="stExpander"] div[data-testid="stExpanderDetails"] {{
+        background-color: {bg_card} !important;
+        color: {text_main} !important;
+    }}
+
+    /* Code Blocks */
+    [data-testid="stCodeBlock"] {{
+        background-color: {code_bg} !important;
+        border: 1.5px solid {code_border} !important;
+        border-radius: 8px !important;
+    }}
+    [data-testid="stCodeBlock"] pre,
+    [data-testid="stCodeBlock"] code {{
+        background-color: transparent !important;
+        color: {code_text} !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+        font-size: 0.95rem !important;
+    }}
+    [data-testid="stCodeBlock"] button {{
+        color: {text_muted} !important;
+    }}
+    [data-testid="stCodeBlock"] button:hover {{
+        color: {text_main} !important;
+    }}
+
+    /* Inline Code */
+    code {{
+        color: {code_text} !important;
+        background-color: {code_bg} !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        font-size: 0.9em !important;
+    }}
+
+    /* Checkboxes & Radios */
+    [data-testid="stCheckbox"] label,
+    [data-testid="stCheckbox"] label span,
+    [data-testid="stCheckbox"] label p,
+    [data-testid="stRadio"] label,
+    [data-testid="stRadio"] label span,
+    [data-testid="stRadio"] label p {{
+        color: {text_main} !important;
+        font-weight: 500 !important;
     }}
 
     /* Primary Buttons */
@@ -212,25 +402,11 @@ st.markdown(
         transition: transform 0.1s ease, background-color 0.15s ease !important;
     }}
     button[kind="secondary"]:hover {{
-        background-color: {badge_bg} !important;
+        background-color: #0f766e !important;
         color: #ffffff !important;
     }}
     button[kind="secondary"]:active {{
         transform: scale(0.97) !important;
-    }}
-
-    /* Inputs, Selectboxes & Dropdowns */
-    .stSelectbox div[data-baseweb="select"] > div {{
-        background-color: {bg_card} !important;
-        border: 1.5px solid {border_card} !important;
-        border-radius: 8px !important;
-        color: {text_main} !important;
-    }}
-    .stSelectbox div[data-baseweb="select"]:hover > div {{
-        border-color: #0f766e !important;
-    }}
-    .stSelectbox div[data-baseweb="select"] span {{
-        color: {text_main} !important;
     }}
 
     /* Number / Tabular values */
@@ -246,10 +422,13 @@ st.markdown(
         display: inline-block;
     }}
 
-    /* Radio button labels */
-    [data-testid="stRadio"] label, [data-testid="stRadio"] span {{
+    /* Alerts */
+    [data-testid="stAlert"] {{
+        border-radius: 8px !important;
+    }}
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"] span {{
         color: {text_main} !important;
-        font-weight: 500 !important;
     }}
     </style>
     """,
