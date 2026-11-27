@@ -16,7 +16,9 @@ A fast, pure-Python web application to generate personalized certificates in bul
   - `PNG Archive (.zip)`: Individual high-resolution PNGs ($2000 \times 1414\text{ px}$).
   - `PDF Archive (.zip)`: Individual PDF files for each participant.
   - `Single Merged PDF (.pdf)`: One multi-page printable document containing all certificates.
+- **Automated Google Drive Sync**: Automatically creates a dedicated batch subfolder in Google Drive and streams generated archives to the cloud with direct 1-click links on the UI.
 - **Customizable Typography**: Adjust font family, font size, text color, capitalization, and vertical position directly from the UI sidebar.
+- **Light & Dark Theme**: Built-in high-contrast theme toggle (Light ☀️ / Dark 🌙) for optimal visual clarity.
 
 ---
 
