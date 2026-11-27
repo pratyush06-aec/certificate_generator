@@ -539,22 +539,24 @@ with st.container(border=True):
 
                 # --- Google Drive Automated Upload ---
                 if auto_upload_drive:
-                    has_secrets = False
+                    webhook_url = st.secrets.get("GDRIVE_WEBHOOK_URL", "") if hasattr(st, "secrets") else ""
+                    has_service_account = False
                     try:
-                        has_secrets = "gdrive_service_account" in st.secrets
+                        has_service_account = "gdrive_service_account" in st.secrets
                     except Exception:
-                        has_secrets = False
+                        has_service_account = False
 
-                    if has_secrets:
+                    if webhook_url or has_service_account:
                         try:
                             with st.spinner("Creating Google Drive folder and uploading..."):
                                 drive_result = automate_drive_export(
                                     file_bytes=buf,
                                     filename=filename,
                                     batch_folder_name=drive_folder_name or f"Certificates_{datetime.now().strftime('%Y%m%d')}",
-                                    credentials_info=dict(st.secrets["gdrive_service_account"]),
+                                    credentials_info=dict(st.secrets["gdrive_service_account"]) if has_service_account and not webhook_url else None,
                                     parent_folder_id=parent_folder_id or None,
                                     mime_type=mime_type,
+                                    webhook_url=webhook_url or None,
                                 )
 
                             st.markdown(
@@ -576,7 +578,7 @@ with st.container(border=True):
                             st.error(f"Google Drive upload encountered an error: {e}")
                     else:
                         st.info(
-                            "💡 **Google Drive Setup Required:** Add your Service Account credentials into "
+                            "💡 **Google Drive Setup Required:** Add your Service Account credentials or Webhook URL into "
                             "`secrets.toml` to enable 1-click cloud sync."
                         )
 

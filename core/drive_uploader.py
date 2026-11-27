@@ -45,7 +45,7 @@ def create_drive_folder(
 
     folder = (
         service.files()
-        .create(body=metadata, fields="id, webViewLink")
+        .create(body=metadata, fields="id, webViewLink", supportsAllDrives=True)
         .execute()
     )
     folder_id = folder.get("id")
@@ -83,7 +83,7 @@ def upload_file_to_folder(
 
     uploaded = (
         service.files()
-        .create(body=metadata, media_body=media, fields="id, webViewLink")
+        .create(body=metadata, media_body=media, fields="id, webViewLink", supportsAllDrives=True)
         .execute()
     )
     return uploaded.get("webViewLink", "")
@@ -93,20 +93,24 @@ def automate_drive_export(
     file_bytes: io.BytesIO,
     filename: str,
     batch_folder_name: str,
-    credentials_info: dict,
+    credentials_info: dict | None = None,
     parent_folder_id: str | None = None,
     mime_type: str = "application/zip",
+    webhook_url: str | None = None,
 ) -> dict[str, str]:
     """
     End-to-end automation:
-    1. Authenticate with Service Account.
-    2. Automatically creates a new dedicated subfolder for this generation batch.
-    3. Streams the certificate archive directly into the newly created folder.
+    1. If webhook_url is provided, uploads via Apps Script (personal Drive, 0 quota issues).
+    2. Otherwise authenticates via Service Account with supportsAllDrives=True (Workspace Shared Drive).
+    3. Automatically creates a new dedicated subfolder for this generation batch.
     4. Returns direct clickable Google Drive links to display on the UI.
-    
-    Returns:
-        dict with keys: 'folder_id', 'folder_url', 'file_url', 'folder_name'
     """
+    if webhook_url:
+        return upload_via_apps_script(file_bytes, filename, batch_folder_name, webhook_url)
+
+    if not credentials_info:
+        raise ValueError("Neither credentials_info nor webhook_url was provided.")
+
     service = get_drive_service(credentials_info)
     folder_id, folder_url = create_drive_folder(service, batch_folder_name, parent_folder_id)
     file_url = upload_file_to_folder(service, file_bytes, filename, folder_id, mime_type)
@@ -117,3 +121,38 @@ def automate_drive_export(
         "file_url": file_url,
         "folder_name": batch_folder_name,
     }
+
+
+def upload_via_apps_script(
+    file_bytes: io.BytesIO,
+    filename: str,
+    folder_name: str,
+    webhook_url: str,
+) -> dict[str, str]:
+    """
+    Upload directly to a personal Google Drive account via a Google Apps Script Web App.
+    Uses the user's personal Google Drive 15GB storage quota, completely bypassing
+    GCP Service Account 0-byte storage restrictions.
+    """
+    import base64
+    import requests
+
+    file_bytes.seek(0)
+    b64_content = base64.b64encode(file_bytes.read()).decode("utf-8")
+    payload = {
+        "filename": filename,
+        "folder": folder_name,
+        "content": b64_content,
+    }
+
+    resp = requests.post(webhook_url, json=payload, timeout=60)
+    resp.raise_for_status()
+    data = resp.json()
+
+    return {
+        "folder_id": data.get("folder_id", ""),
+        "folder_url": data.get("folder_url", f"https://drive.google.com/drive/folders/{data.get('folder_id', '')}"),
+        "file_url": data.get("file_url", ""),
+        "folder_name": folder_name,
+    }
+
