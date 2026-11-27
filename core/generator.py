@@ -32,31 +32,46 @@ def load_participants(
     Returns:
         tuple: (list_of_names, available_columns, selected_column)
     """
-    # shortcut: assumes header on row 0, upgrade with multi-row header sniffing if non-standard sheets are uploaded
-    if isinstance(file_or_path, str):
-        if file_or_path.lower().endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(file_or_path)
-        else:
-            df = pd.read_csv(file_or_path)
-    else:
-        # File-like object (e.g. from Streamlit uploader)
-        try:
-            df = pd.read_excel(file_or_path)
-        except Exception:
-            file_or_path.seek(0)
-            df = pd.read_csv(file_or_path)
+    # Detect file type from name attribute if present
+    filename = getattr(file_or_path, "name", str(file_or_path)).lower()
+    if hasattr(file_or_path, "seek"):
+        file_or_path.seek(0)
 
-    columns = [str(c).strip() for c in df.columns]
+    # shortcut: assumes header on row 0, upgrade with multi-row header sniffing if non-standard sheets are uploaded
+    if filename.endswith(('.xlsx', '.xls')):
+        df = pd.read_excel(file_or_path)
+    else:
+        # For CSV, try utf-8-sig first to cleanly strip BOM (\ufeff), fallback to latin-1
+        try:
+            df = pd.read_csv(file_or_path, encoding="utf-8-sig")
+        except Exception:
+            if hasattr(file_or_path, "seek"):
+                file_or_path.seek(0)
+            try:
+                df = pd.read_excel(file_or_path)
+            except Exception:
+                if hasattr(file_or_path, "seek"):
+                    file_or_path.seek(0)
+                df = pd.read_csv(file_or_path, encoding="latin-1")
+
+    # Clean DataFrame columns directly to prevent KeyError mismatches
+    df.columns = [str(c).replace('\ufeff', '').strip() for c in df.columns]
+    columns = [c for c in df.columns if c and not c.startswith("Unnamed:")]
+    if not columns:
+        columns = list(df.columns)
     if not columns:
         return [], [], ""
 
     # Determine which column to use
     selected = None
-    if column_name and column_name in columns:
+    if column_name and column_name in df.columns:
         selected = column_name
     else:
-        # Auto-detect likely name columns
-        common_candidates = ["name", "participant", "participant name", "full name", "student", "candidate", "recipient"]
+        # Auto-detect likely name columns (case-insensitive)
+        common_candidates = [
+            "name", "participant", "participant name", "participant's name",
+            "full name", "student", "student name", "candidate", "recipient", "attendee"
+        ]
         for cand in common_candidates:
             match = next((c for c in columns if c.lower() == cand), None)
             if match:
@@ -65,9 +80,14 @@ def load_participants(
         if not selected:
             selected = columns[0]
 
-    series = df[selected].dropna().astype(str).str.strip()
-    # Filter out empty strings
-    raw_names = [n for n in series if n]
+    # Safe series extraction with iloc fallback
+    if selected in df.columns:
+        series = df[selected].dropna().astype(str).str.strip()
+    else:
+        series = df.iloc[:, 0].dropna().astype(str).str.strip()
+
+    # Filter out empty strings and string representations of nan
+    raw_names = [n for n in series if n and n.lower() != "nan"]
 
     # Apply case transformation
     if transform == "title":

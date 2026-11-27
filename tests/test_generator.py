@@ -35,6 +35,14 @@ class TestCertificateGenerator(unittest.TestCase):
         self.assertEqual(sel, "Participant Name")
         self.assertEqual(names, ["Alice Smith", "Bob Jones", "Charlie Brown"])
 
+    def test_load_participants_with_trailing_spaces_and_bom(self):
+        # Edge case: Column header has trailing space and BOM
+        raw_bytes = io.BytesIO("\ufeffParticipant Name  ,Score\nAlice Smith,100\nBob Jones,90\n".encode("utf-8"))
+        names, cols, sel = load_participants(raw_bytes)
+        self.assertIn("Participant Name", cols)
+        self.assertEqual(sel, "Participant Name")
+        self.assertEqual(names, ["Alice Smith", "Bob Jones"])
+
     def test_load_participants_casing_transform(self):
         csv_data = io.StringIO("Name\njohn doe\nJANE ROE\n")
         title_names, _, _ = load_participants(csv_data, transform="title")
