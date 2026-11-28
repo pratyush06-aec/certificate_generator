@@ -872,14 +872,21 @@ with st.container(border=True):
         with export_col1:
             export_mode = st.radio(
                 "Export Format:",
-                options=["png_zip", "pdf_zip", "pdf_merged"],
+                options=["png_zip", "pdf_merged", "pdf_zip"],
                 format_func=lambda x: {
-                    "png_zip": "PNG Archive (.zip) — Individual high-resolution images (300 DPI)",
-                    "pdf_zip": "PDF Archive (.zip) — Individual PDF files for each participant",
-                    "pdf_merged": "Single Merged PDF (.pdf) — All certificates in one multi-page document",
+                    "png_zip": "PNG Archive (.zip) — Individual images (300 DPI, Large file ~60MB for 100 certs)",
+                    "pdf_merged": "Single Merged PDF (.pdf) — 🌟 Recommended for large batches (Fastest & ~13MB)",
+                    "pdf_zip": "PDF Archive (.zip) — Individual PDF files for each participant (~14MB)",
                 }[x],
                 index=0,
             )
+
+            if len(names) > 35 and export_mode == "png_zip":
+                st.info(
+                    "💡 **Large Batch Recommendation:** 50+ certificates in PNG format generate a large archive (~60 MB). "
+                    "For instant Google Drive sync without cloud upload limits, we recommend selecting "
+                    "**Single Merged PDF** or **PDF Archive** (only ~13 MB)."
+                )
 
             st.markdown("---")
             st.markdown("#### ☁️ Google Drive Automation")
@@ -973,7 +980,16 @@ with st.container(border=True):
                                 with st.expander("📄 Direct File Download Link", expanded=False):
                                     st.code(drive_result["file_url"], language="text")
                         except Exception as e:
-                            st.error(f"Google Drive upload encountered an error: {e}")
+                            err_str = str(e)
+                            if any(k in err_str.lower() for k in ["timed out", "timeout", "aborted", "35 mb", "google apps script", "write operation"]):
+                                st.warning(
+                                    f"⚠️ **Google Drive Cloud Sync Notice ({len(buf.getvalue()) / (1024 * 1024):.1f} MB):**\n\n"
+                                    f"{e}\n\n"
+                                    f"✅ **All {len(names)} certificates were generated successfully!** You can download the complete archive directly using the button below.\n\n"
+                                    "💡 **To get the Google Drive link for large batches (50+ participants):** Switch 'Export Format' above to **Single Merged PDF** or **PDF Archive** (~13 MB) and click Generate — PDF files are ~75% smaller and sync to Drive in seconds!"
+                                )
+                            else:
+                                st.error(f"Google Drive upload encountered an error: {e}")
                     else:
                         st.info(
                             "💡 **Google Drive Setup Required:** Add your Service Account credentials or Webhook URL into "

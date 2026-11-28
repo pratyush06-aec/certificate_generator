@@ -73,20 +73,33 @@ def upload_file_to_folder(
 ) -> str:
     """
     Upload an in-memory file buffer directly to a target Google Drive folder.
+    Supports resumable chunked streaming (5MB slices) to prevent socket write timeouts.
     """
     file_bytes.seek(0)
     metadata = {
         "name": filename,
         "parents": [folder_id],
     }
-    media = MediaIoBaseUpload(file_bytes, mimetype=mime_type, resumable=True)
+    media = MediaIoBaseUpload(
+        file_bytes,
+        mimetype=mime_type,
+        chunksize=5 * 1024 * 1024,
+        resumable=True,
+    )
 
-    uploaded = (
+    request = (
         service.files()
         .create(body=metadata, media_body=media, fields="id, webViewLink", supportsAllDrives=True)
-        .execute()
     )
-    return uploaded.get("webViewLink", "")
+
+    try:
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+        return response.get("webViewLink", "") if isinstance(response, dict) else ""
+    except (TypeError, ValueError, AttributeError):
+        uploaded = request.execute()
+        return uploaded.get("webViewLink", "") if isinstance(uploaded, dict) else ""
 
 
 def automate_drive_export(
@@ -138,14 +151,28 @@ def upload_via_apps_script(
     import requests
 
     file_bytes.seek(0)
-    b64_content = base64.b64encode(file_bytes.read()).decode("utf-8")
+    raw_data = file_bytes.read()
+    raw_size_mb = len(raw_data) / (1024 * 1024)
+
+    # Google Apps Script Web Apps have a hard 50 MB HTTP POST body limit.
+    # Base64 encoding expands binary data by 33% (e.g. 35 MB raw becomes ~47 MB payload).
+    if raw_size_mb > 35.0:
+        raise TimeoutError(
+            f"The generated batch archive is {raw_size_mb:.1f} MB, which exceeds Google Apps Script's "
+            f"35 MB single-upload limit (expanding to {raw_size_mb * 1.33:.1f} MB in base64). "
+            f"Please download the file directly using the button below, or select 'Single Merged PDF' or 'PDF Archive' "
+            f"(~13 MB) for instant 1-click Google Drive sync."
+        )
+
+    b64_content = base64.b64encode(raw_data).decode("utf-8")
     payload = {
         "filename": filename,
         "folder": folder_name,
         "content": b64_content,
     }
 
-    resp = requests.post(webhook_url, json=payload, timeout=60)
+    # Use a generous 5-minute timeout window (30s connect, 300s read/write) for large archives
+    resp = requests.post(webhook_url, json=payload, timeout=(30, 300))
     resp.raise_for_status()
     data = resp.json()
 

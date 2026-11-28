@@ -64,6 +64,30 @@ class TestDriveUploader(unittest.TestCase):
         self.assertEqual(result["folder_name"], "Batch_2026")
         self.assertEqual(result["folder_url"], "https://drive.google.com/folders/new_f_id")
 
+    @patch("requests.post")
+    def test_upload_via_apps_script_success(self, mock_post):
+        from core.drive_uploader import upload_via_apps_script
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "folder_id": "f_123",
+            "folder_url": "https://drive.google.com/drive/folders/f_123",
+            "file_url": "https://drive.google.com/file/f_123",
+        }
+        mock_post.return_value = mock_resp
+
+        buf = io.BytesIO(b"test certificate payload")
+        res = upload_via_apps_script(buf, "certs.zip", "Batch_1", "https://script.google.com/macros/s/xyz/exec")
+        self.assertEqual(res["folder_id"], "f_123")
+        self.assertEqual(mock_post.call_args[1]["timeout"], (30, 300))
+
+    def test_upload_via_apps_script_oversize_guard(self):
+        from core.drive_uploader import upload_via_apps_script
+        # Buffer simulating > 35 MB
+        oversize_buf = io.BytesIO(b"0" * (36 * 1024 * 1024))
+        with self.assertRaises(TimeoutError) as ctx:
+            upload_via_apps_script(oversize_buf, "certs.zip", "Batch_1", "https://script.google.com/macros/s/xyz/exec")
+        self.assertIn("exceeds Google Apps Script", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

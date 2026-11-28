@@ -191,7 +191,7 @@ def export_batch(
 
     # ZIP archives (png_zip or pdf_zip)
     zip_buf = io.BytesIO()
-    with zipfile.ZipFile(zip_buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(zip_buf, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
         for idx, name in enumerate(names, 1):
             img = render_certificate(
                 template=template,
@@ -211,9 +211,9 @@ def export_batch(
                 filename = f"{idx:03d}_{safe_name}.pdf"
                 zf.writestr(filename, file_buf.getvalue())
             else:
-                # Default: PNG
+                # Default: PNG with optimized compression
                 file_buf = io.BytesIO()
-                img.save(file_buf, format="PNG")
+                img.save(file_buf, format="PNG", optimize=True, compress_level=6)
                 filename = f"{idx:03d}_{safe_name}.png"
                 zf.writestr(filename, file_buf.getvalue())
 
