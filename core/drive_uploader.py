@@ -6,7 +6,11 @@ and upload generated certificate archives without manual user sign-in.
 
 from __future__ import annotations
 
+import base64
 import io
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests
+from requests.adapters import HTTPAdapter
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -142,15 +146,13 @@ def upload_via_apps_script(
     folder_name: str,
     webhook_url: str,
     folder_id: str | None = None,
+    session: requests.Session | None = None,
 ) -> dict[str, str]:
     """
     Upload directly to a personal Google Drive account via a Google Apps Script Web App.
     Uses the user's personal Google Drive 15GB storage quota, completely bypassing
     GCP Service Account 0-byte storage restrictions.
     """
-    import base64
-    import requests
-
     file_bytes.seek(0)
     raw_data = file_bytes.read()
     raw_size_mb = len(raw_data) / (1024 * 1024)
@@ -173,7 +175,8 @@ def upload_via_apps_script(
         payload["folder_id"] = folder_id
 
     # Use a generous 5-minute timeout window (30s connect, 300s read/write) for large archives
-    resp = requests.post(webhook_url, json=payload, timeout=(30, 300))
+    client = session or requests
+    resp = client.post(webhook_url, json=payload, timeout=(30, 300))
     resp.raise_for_status()
     data = resp.json()
 
@@ -195,11 +198,14 @@ def automate_chunked_drive_export(
     parent_folder_id: str | None = None,
     webhook_url: str | None = None,
     progress_callback: object | None = None,
+    on_folder_created: object | None = None,
+    max_upload_workers: int = 3,
 ) -> dict[str, str]:
     """
-    Sequential Gateway Uploader:
-    Streams multiple file parts sequentially into the exact same Google Drive batch folder.
-    Guarantees no single request exceeds cloud limits and eliminates timeouts.
+    Pipelined Chunked Drive Gateway:
+    1. Uploads Part 1 first to create the Google Drive batch folder and generate the public link.
+    2. Instantly fires on_folder_created callback so user gets the link without waiting.
+    3. Streams remaining parts in parallel waves (max_upload_workers=3) using persistent HTTP sessions.
     """
     total_parts = len(parts)
     if total_parts == 0:
@@ -208,32 +214,88 @@ def automate_chunked_drive_export(
     folder_id: str | None = None
     folder_url: str = ""
     service = None
+    session: requests.Session | None = None
 
-    if not webhook_url:
+    if webhook_url:
+        session = requests.Session()
+        adapter = HTTPAdapter(
+            pool_connections=max_upload_workers + 2,
+            pool_maxsize=max_upload_workers + 2,
+            max_retries=2,
+        )
+        session.mount("https://", adapter)
+    else:
         if not credentials_info:
             raise ValueError("Neither credentials_info nor webhook_url was provided.")
         service = get_drive_service(credentials_info)
-        folder_id, folder_url = create_drive_folder(service, batch_folder_name, parent_folder_id)
 
     last_file_url = ""
 
-    for idx, (p_bytes, p_filename, p_mime) in enumerate(parts, 1):
-        if progress_callback and callable(progress_callback):
-            progress_callback(idx, total_parts, p_filename)
+    # Phase 1: Upload Part 1 first to establish folder and web link
+    p1_bytes, p1_filename, p1_mime = parts[0]
+    if progress_callback and callable(progress_callback):
+        progress_callback(1, total_parts, p1_filename)
 
-        if webhook_url:
-            res = upload_via_apps_script(
-                file_bytes=p_bytes,
-                filename=p_filename,
-                folder_name=batch_folder_name,
-                webhook_url=webhook_url,
-                folder_id=folder_id,
-            )
-            folder_id = res.get("folder_id") or folder_id
-            folder_url = res.get("folder_url") or folder_url
-            last_file_url = res.get("file_url") or last_file_url
-        else:
-            last_file_url = upload_file_to_folder(service, p_bytes, p_filename, folder_id, p_mime)
+    if webhook_url:
+        res1 = upload_via_apps_script(
+            file_bytes=p1_bytes,
+            filename=p1_filename,
+            folder_name=batch_folder_name,
+            webhook_url=webhook_url,
+            folder_id=None,
+            session=session,
+        )
+        folder_id = res1.get("folder_id")
+        folder_url = res1.get("folder_url", f"https://drive.google.com/drive/folders/{folder_id}")
+        last_file_url = res1.get("file_url", "")
+    else:
+        folder_id, folder_url = create_drive_folder(service, batch_folder_name, parent_folder_id)
+        last_file_url = upload_file_to_folder(service, p1_bytes, p1_filename, folder_id, p1_mime)
+
+    # Immediately fire callback so UI displays the public folder link right after Part 1
+    if on_folder_created and callable(on_folder_created):
+        try:
+            on_folder_created(folder_id or "", folder_url)
+        except Exception:
+            pass
+
+    # Phase 2: Stream remaining parts in parallel waves into the established folder
+    remaining_parts = parts[1:]
+    if remaining_parts:
+        completed_count = 1
+
+        def _worker(item: tuple[int, tuple[io.BytesIO, str, str]]) -> str:
+            part_idx, (p_bytes, p_filename, p_mime) = item
+            if webhook_url:
+                res = upload_via_apps_script(
+                    file_bytes=p_bytes,
+                    filename=p_filename,
+                    folder_name=batch_folder_name,
+                    webhook_url=webhook_url,
+                    folder_id=folder_id,
+                    session=session,
+                )
+                return res.get("file_url", "")
+            else:
+                return upload_file_to_folder(service, p_bytes, p_filename, folder_id, p_mime)
+
+        workers_count = min(max_upload_workers, len(remaining_parts))
+        with ThreadPoolExecutor(max_workers=workers_count) as executor:
+            future_to_item = {
+                executor.submit(_worker, (i, p)): (i, p[1])
+                for i, p in enumerate(remaining_parts, 2)
+            }
+            for future in as_completed(future_to_item):
+                part_num, p_filename = future_to_item[future]
+                file_res = future.result()
+                if file_res:
+                    last_file_url = file_res
+                completed_count += 1
+                if progress_callback and callable(progress_callback):
+                    progress_callback(completed_count, total_parts, p_filename)
+
+    if session:
+        session.close()
 
     return {
         "folder_id": folder_id or "",

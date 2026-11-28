@@ -955,27 +955,59 @@ with st.container(border=True):
 
                     if webhook_url or has_service_account:
                         try:
-                            upload_status = st.empty()
-                            if len(parts) > 1:
-                                upload_status.info(f"📦 Streaming {len(parts)} sequential parts to Google Drive...")
+                            folder_card_slot = st.empty()
+                            folder_link_slot = st.empty()
+                            upload_status_slot = st.empty()
 
-                            def update_upload_status(part_num: int, total_parts: int, p_name: str):
-                                upload_status.info(f"☁️ Shipping Part {part_num} of {total_parts} to Google Drive ({p_name})...")
+                            target_folder_name = drive_folder_name or f"Certificates_{datetime.now().strftime('%Y%m%d_%H%M')}"
+                            total_parts_count = len(parts)
+
+                            if total_parts_count > 1:
+                                upload_status_slot.info(f"⚡ Establishing Drive link with Part 1 & preparing {total_parts_count} parts in parallel...")
+                            else:
+                                upload_status_slot.info("☁️ Uploading certificate package to Google Drive...")
+
+                            def on_drive_folder_ready(f_id: str, f_url: str):
+                                part_desc = f"{total_parts_count} Parts" if total_parts_count > 1 else "1 File"
+                                folder_card_slot.markdown(
+                                    f"""
+                                    <div style="background-color: {badge_bg}; border: 1.5px solid {badge_border}; border-radius: 10px; padding: 16px; margin: 16px 0 12px 0;">
+                                        <h4 style="margin: 0 0 8px 0; color: {badge_color};">☁️ Google Drive Link Ready!</h4>
+                                        <p style="margin: 0; color: {text_main}; font-size: 0.95rem;">
+                                            📁 Created Folder: <b>{target_folder_name}</b> &nbsp;|&nbsp; 
+                                            📦 Destination: <b>{part_desc}</b> ({len(names)} Certificates)
+                                        </p>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True,
+                                )
+                                folder_link_slot.markdown("##### 📋 Copy-Pastable Public Drive Link:")
+                                folder_link_slot.code(f_url, language="text")
+
+                            def update_upload_status(completed: int, total_p: int, p_name: str):
+                                if completed == 1 and total_p > 1:
+                                    upload_status_slot.info(f"⚡ Part 1 link established! Streaming remaining {total_p - 1} chunks in parallel...")
+                                elif completed < total_p:
+                                    pct = int((completed / total_p) * 100)
+                                    upload_status_slot.info(f"☁️ Shipped {completed} of {total_p} parts ({pct}%) to Google Drive (latest: {p_name})...")
+                                else:
+                                    upload_status_slot.success(f"✅ All {total_p} parts ({len(names)} certificates) shipped to Google Drive successfully!")
 
                             drive_result = automate_chunked_drive_export(
                                 parts=parts,
-                                batch_folder_name=drive_folder_name or f"Certificates_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                                batch_folder_name=target_folder_name,
                                 credentials_info=dict(st.secrets["gdrive_service_account"]) if has_service_account and not webhook_url else None,
                                 parent_folder_id=parent_folder_id or None,
                                 webhook_url=webhook_url or None,
                                 progress_callback=update_upload_status,
+                                on_folder_created=on_drive_folder_ready,
+                                max_upload_workers=3,
                             )
-                            upload_status.empty()
 
                             total_parts_str = drive_result.get("total_parts", "1")
                             part_label = f"{total_parts_str} Parts" if int(total_parts_str) > 1 else "1 File"
 
-                            st.markdown(
+                            folder_card_slot.markdown(
                                 f"""
                                 <div style="background-color: {badge_bg}; border: 1.5px solid {badge_border}; border-radius: 10px; padding: 16px; margin: 16px 0 12px 0;">
                                     <h4 style="margin: 0 0 8px 0; color: {badge_color};">☁️ Uploaded to Google Drive Successfully!</h4>
@@ -987,9 +1019,8 @@ with st.container(border=True):
                                 """,
                                 unsafe_allow_html=True,
                             )
-
-                            st.markdown("##### 📋 Copy-Pastable Public Drive Link:")
-                            st.code(drive_result["folder_url"], language="text")
+                            folder_link_slot.markdown("##### 📋 Copy-Pastable Public Drive Link:")
+                            folder_link_slot.code(drive_result["folder_url"], language="text")
 
                             if int(total_parts_str) > 1:
                                 with st.expander(f"📦 View All {total_parts_str} Parts Inside Google Drive Folder", expanded=False):
