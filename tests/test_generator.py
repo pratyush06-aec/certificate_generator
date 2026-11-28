@@ -145,6 +145,31 @@ class TestCertificateGenerator(unittest.TestCase):
         self.assertIn("part2_of_3", parts[1][1])
         self.assertIn("part3_of_3", parts[2][1])
 
+    def test_export_batch_unified_single_pass(self):
+        from core.generator import export_batch_unified
+        names = ["Alice", "Bob", "Charlie", "David", "Eve"]
+        (master_buf, master_name, master_mime), parts = export_batch_unified(
+            template=self.template,
+            names=names,
+            font_path=self.font_path,
+            format_type="png_zip",
+            max_names_per_part=2,
+        )
+        self.assertEqual(master_name, "certificates_png.zip")
+        self.assertEqual(master_mime, "application/zip")
+        with zipfile.ZipFile(master_buf, "r") as zf:
+            self.assertEqual(len(zf.namelist()), 5)
+
+        # 5 items chunked into max 2 per part -> 3 parts (2, 2, 1)
+        self.assertEqual(len(parts), 3)
+        self.assertIn("part1_of_3", parts[0][1])
+        self.assertIn("part2_of_3", parts[1][1])
+        self.assertIn("part3_of_3", parts[2][1])
+        with zipfile.ZipFile(parts[0][0], "r") as pzf1:
+            self.assertEqual(len(pzf1.namelist()), 2)
+        with zipfile.ZipFile(parts[2][0], "r") as pzf3:
+            self.assertEqual(len(pzf3.namelist()), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

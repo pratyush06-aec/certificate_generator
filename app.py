@@ -17,6 +17,7 @@ from core.generator import (
     render_certificate,
     export_batch,
     export_batch_in_parts,
+    export_batch_unified,
 )
 from core.drive_uploader import (
     automate_drive_export,
@@ -920,13 +921,13 @@ with st.container(border=True):
             st.markdown(f"**Total Ready to Generate:** <span class='tabular-badge'>{len(names)} Certificates</span>", unsafe_allow_html=True)
             st.write("")
             if st.button("🚀 Generate All Certificates Now", type="primary", use_container_width=True):
-                progress_bar = st.progress(0, text="Generating certificates...")
+                progress_bar = st.progress(0, text="Generating certificates in parallel...")
 
                 def update_progress(current: int, total: int):
                     pct = int((current / total) * 100)
                     progress_bar.progress(pct, text=f"Rendering {current} of {total} ({pct}%)...")
 
-                buf, filename, mime_type = export_batch(
+                (buf, filename, mime_type), parts = export_batch_unified(
                     template=template_img,
                     names=names,
                     font_path=font_path,
@@ -936,6 +937,7 @@ with st.container(border=True):
                     max_width=max_width,
                     mask_placeholder=mask_placeholder,
                     format_type=export_mode,
+                    max_names_per_part=30,
                     progress_callback=update_progress,
                 )
 
@@ -953,26 +955,9 @@ with st.container(border=True):
 
                     if webhook_url or has_service_account:
                         try:
-                            # If batch is large (> 35 participants for PNG or archive > 25 MB), use chunked gateway
-                            archive_size_mb = len(buf.getvalue()) / (1024 * 1024)
                             upload_status = st.empty()
-
-                            if archive_size_mb > 25.0 or (export_mode == "png_zip" and len(names) > 35):
-                                upload_status.info("📦 Segmenting large batch into safe sequential parts to prevent cloud timeouts...")
-                                parts = export_batch_in_parts(
-                                    template=template_img,
-                                    names=names,
-                                    font_path=font_path,
-                                    font_size=font_size,
-                                    font_color=font_color,
-                                    y_pos=y_pos,
-                                    max_width=max_width,
-                                    mask_placeholder=mask_placeholder,
-                                    format_type=export_mode,
-                                    max_names_per_part=35,
-                                )
-                            else:
-                                parts = [(buf, filename, mime_type)]
+                            if len(parts) > 1:
+                                upload_status.info(f"📦 Streaming {len(parts)} sequential parts to Google Drive...")
 
                             def update_upload_status(part_num: int, total_parts: int, p_name: str):
                                 upload_status.info(f"☁️ Shipping Part {part_num} of {total_parts} to Google Drive ({p_name})...")
