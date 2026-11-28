@@ -223,3 +223,107 @@ def export_batch(
     zip_buf.seek(0)
     out_name = "certificates_pdf.zip" if format_type == "pdf_zip" else "certificates_png.zip"
     return zip_buf, out_name, "application/zip"
+
+
+def export_batch_in_parts(
+    template: Image.Image,
+    names: list[str],
+    font_path: str,
+    font_size: int = 72,
+    font_color: str = "#043539",
+    y_pos: int = 750,
+    max_width: int = 1500,
+    mask_placeholder: bool = True,
+    format_type: str = "png_zip",
+    max_names_per_part: int = 35,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> list[tuple[io.BytesIO, str, str]]:
+    """
+    Split participant list into safe sub-batches (<= max_names_per_part),
+    and package each into a separate standalone zip buffer.
+    Ensures no single upload archive exceeds cloud payload thresholds (~25 MB).
+    
+    Returns:
+        list of (BytesIO_buffer, filename, mime_type)
+    """
+    total_names = len(names)
+    if total_names == 0:
+        raise ValueError("No participant names provided.")
+
+    # Merged PDF is already compact (~13 MB for 95 certs), single part unless > 150
+    if format_type == "pdf_merged" and total_names <= 150:
+        buf, filename, mime = export_batch(
+            template=template,
+            names=names,
+            font_path=font_path,
+            font_size=font_size,
+            font_color=font_color,
+            y_pos=y_pos,
+            max_width=max_width,
+            mask_placeholder=mask_placeholder,
+            format_type=format_type,
+            progress_callback=progress_callback,
+        )
+        return [(buf, filename, mime)]
+
+    # If small batch, return single file
+    if total_names <= max_names_per_part:
+        buf, filename, mime = export_batch(
+            template=template,
+            names=names,
+            font_path=font_path,
+            font_size=font_size,
+            font_color=font_color,
+            y_pos=y_pos,
+            max_width=max_width,
+            mask_placeholder=mask_placeholder,
+            format_type=format_type,
+            progress_callback=progress_callback,
+        )
+        return [(buf, filename, mime)]
+
+    # Chunk names into sub-batches
+    chunks = [names[i : i + max_names_per_part] for i in range(0, total_names, max_names_per_part)]
+    num_parts = len(chunks)
+    parts_output: list[tuple[io.BytesIO, str, str]] = []
+
+    overall_rendered = 0
+    ext = "pdf" if format_type == "pdf_zip" else "png"
+
+    for part_idx, chunk in enumerate(chunks, 1):
+        zip_buf = io.BytesIO()
+        start_idx = (part_idx - 1) * max_names_per_part + 1
+        end_idx = start_idx + len(chunk) - 1
+
+        with zipfile.ZipFile(zip_buf, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+            for item_idx, name in enumerate(chunk):
+                cert_number = start_idx + item_idx
+                img = render_certificate(
+                    template=template,
+                    name=name,
+                    font_path=font_path,
+                    font_size=font_size,
+                    font_color=font_color,
+                    y_pos=y_pos,
+                    max_width=max_width,
+                    mask_placeholder=mask_placeholder,
+                )
+                safe_name = sanitize_filename(name)
+                filename = f"{cert_number:03d}_{safe_name}.{ext}"
+
+                file_buf = io.BytesIO()
+                if format_type == "pdf_zip":
+                    img.save(file_buf, format="PDF", resolution=100.0)
+                else:
+                    img.save(file_buf, format="PNG", optimize=True, compress_level=6)
+
+                zf.writestr(filename, file_buf.getvalue())
+                overall_rendered += 1
+                if progress_callback:
+                    progress_callback(overall_rendered, total_names)
+
+        zip_buf.seek(0)
+        part_filename = f"certificates_{ext}_part{part_idx}_of_{num_parts}_(certs_{start_idx}-{end_idx}).zip"
+        parts_output.append((zip_buf, part_filename, "application/zip"))
+
+    return parts_output

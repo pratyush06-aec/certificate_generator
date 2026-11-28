@@ -16,8 +16,12 @@ from core.generator import (
     load_participants,
     render_certificate,
     export_batch,
+    export_batch_in_parts,
 )
-from core.drive_uploader import automate_drive_export
+from core.drive_uploader import (
+    automate_drive_export,
+    automate_chunked_drive_export,
+)
 
 # Page configuration & SEO Metadata
 st.set_page_config(
@@ -938,7 +942,7 @@ with st.container(border=True):
                 progress_bar.progress(100, text="Done! Ready for download.")
                 st.success(f"Generated {len(names)} certificates successfully!")
 
-                # --- Google Drive Automated Upload ---
+                # --- Google Drive Automated Upload (Sequential Chunked Gateway) ---
                 if auto_upload_drive:
                     webhook_url = st.secrets.get("GDRIVE_WEBHOOK_URL", "") if hasattr(st, "secrets") else ""
                     has_service_account = False
@@ -949,16 +953,42 @@ with st.container(border=True):
 
                     if webhook_url or has_service_account:
                         try:
-                            with st.spinner("Creating Google Drive folder and uploading..."):
-                                drive_result = automate_drive_export(
-                                    file_bytes=buf,
-                                    filename=filename,
-                                    batch_folder_name=drive_folder_name or f"Certificates_{datetime.now().strftime('%Y%m%d')}",
-                                    credentials_info=dict(st.secrets["gdrive_service_account"]) if has_service_account and not webhook_url else None,
-                                    parent_folder_id=parent_folder_id or None,
-                                    mime_type=mime_type,
-                                    webhook_url=webhook_url or None,
+                            # If batch is large (> 35 participants for PNG or archive > 25 MB), use chunked gateway
+                            archive_size_mb = len(buf.getvalue()) / (1024 * 1024)
+                            upload_status = st.empty()
+
+                            if archive_size_mb > 25.0 or (export_mode == "png_zip" and len(names) > 35):
+                                upload_status.info("📦 Segmenting large batch into safe sequential parts to prevent cloud timeouts...")
+                                parts = export_batch_in_parts(
+                                    template=template_img,
+                                    names=names,
+                                    font_path=font_path,
+                                    font_size=font_size,
+                                    font_color=font_color,
+                                    y_pos=y_pos,
+                                    max_width=max_width,
+                                    mask_placeholder=mask_placeholder,
+                                    format_type=export_mode,
+                                    max_names_per_part=35,
                                 )
+                            else:
+                                parts = [(buf, filename, mime_type)]
+
+                            def update_upload_status(part_num: int, total_parts: int, p_name: str):
+                                upload_status.info(f"☁️ Shipping Part {part_num} of {total_parts} to Google Drive ({p_name})...")
+
+                            drive_result = automate_chunked_drive_export(
+                                parts=parts,
+                                batch_folder_name=drive_folder_name or f"Certificates_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                                credentials_info=dict(st.secrets["gdrive_service_account"]) if has_service_account and not webhook_url else None,
+                                parent_folder_id=parent_folder_id or None,
+                                webhook_url=webhook_url or None,
+                                progress_callback=update_upload_status,
+                            )
+                            upload_status.empty()
+
+                            total_parts_str = drive_result.get("total_parts", "1")
+                            part_label = f"{total_parts_str} Parts" if int(total_parts_str) > 1 else "1 File"
 
                             st.markdown(
                                 f"""
@@ -966,7 +996,7 @@ with st.container(border=True):
                                     <h4 style="margin: 0 0 8px 0; color: {badge_color};">☁️ Uploaded to Google Drive Successfully!</h4>
                                     <p style="margin: 0; color: {text_main}; font-size: 0.95rem;">
                                         📁 Created Folder: <b>{drive_result['folder_name']}</b> &nbsp;|&nbsp; 
-                                        📄 File: <code>{filename}</code>
+                                        📦 Shipped: <b>{part_label}</b> ({len(names)} Certificates)
                                     </p>
                                 </div>
                                 """,
@@ -976,20 +1006,15 @@ with st.container(border=True):
                             st.markdown("##### 📋 Copy-Pastable Public Drive Link:")
                             st.code(drive_result["folder_url"], language="text")
 
-                            if drive_result.get("file_url") and drive_result["file_url"] != drive_result["folder_url"]:
+                            if int(total_parts_str) > 1:
+                                with st.expander(f"📦 View All {total_parts_str} Parts Inside Google Drive Folder", expanded=False):
+                                    for p_idx, (_, p_name, _) in enumerate(parts, 1):
+                                        st.write(f"• **Part {p_idx}:** `{p_name}`")
+                            elif drive_result.get("file_url") and drive_result["file_url"] != drive_result["folder_url"]:
                                 with st.expander("📄 Direct File Download Link", expanded=False):
                                     st.code(drive_result["file_url"], language="text")
                         except Exception as e:
-                            err_str = str(e)
-                            if any(k in err_str.lower() for k in ["timed out", "timeout", "aborted", "35 mb", "google apps script", "write operation"]):
-                                st.warning(
-                                    f"⚠️ **Google Drive Cloud Sync Notice ({len(buf.getvalue()) / (1024 * 1024):.1f} MB):**\n\n"
-                                    f"{e}\n\n"
-                                    f"✅ **All {len(names)} certificates were generated successfully!** You can download the complete archive directly using the button below.\n\n"
-                                    "💡 **To get the Google Drive link for large batches (50+ participants):** Switch 'Export Format' above to **Single Merged PDF** or **PDF Archive** (~13 MB) and click Generate — PDF files are ~75% smaller and sync to Drive in seconds!"
-                                )
-                            else:
-                                st.error(f"Google Drive upload encountered an error: {e}")
+                            st.error(f"Google Drive upload encountered an error: {e}")
                     else:
                         st.info(
                             "💡 **Google Drive Setup Required:** Add your Service Account credentials or Webhook URL into "

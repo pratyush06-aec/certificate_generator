@@ -88,6 +88,29 @@ class TestDriveUploader(unittest.TestCase):
             upload_via_apps_script(oversize_buf, "certs.zip", "Batch_1", "https://script.google.com/macros/s/xyz/exec")
         self.assertIn("exceeds Google Apps Script", str(ctx.exception))
 
+    @patch("requests.post")
+    def test_automate_chunked_drive_export(self, mock_post):
+        from core.drive_uploader import automate_chunked_drive_export
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "folder_id": "batch_folder_99",
+            "folder_url": "https://drive.google.com/drive/folders/batch_folder_99",
+            "file_url": "https://drive.google.com/file/part.zip",
+        }
+        mock_post.return_value = mock_resp
+
+        part1 = (io.BytesIO(b"part1"), "part1.zip", "application/zip")
+        part2 = (io.BytesIO(b"part2"), "part2.zip", "application/zip")
+
+        res = automate_chunked_drive_export(
+            parts=[part1, part2],
+            batch_folder_name="Batch_99",
+            webhook_url="https://script.google.com/macros/s/xyz/exec",
+        )
+        self.assertEqual(res["folder_id"], "batch_folder_99")
+        self.assertEqual(res["total_parts"], "2")
+        self.assertEqual(mock_post.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

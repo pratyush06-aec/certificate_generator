@@ -141,6 +141,7 @@ def upload_via_apps_script(
     filename: str,
     folder_name: str,
     webhook_url: str,
+    folder_id: str | None = None,
 ) -> dict[str, str]:
     """
     Upload directly to a personal Google Drive account via a Google Apps Script Web App.
@@ -158,10 +159,8 @@ def upload_via_apps_script(
     # Base64 encoding expands binary data by 33% (e.g. 35 MB raw becomes ~47 MB payload).
     if raw_size_mb > 35.0:
         raise TimeoutError(
-            f"The generated batch archive is {raw_size_mb:.1f} MB, which exceeds Google Apps Script's "
-            f"35 MB single-upload limit (expanding to {raw_size_mb * 1.33:.1f} MB in base64). "
-            f"Please download the file directly using the button below, or select 'Single Merged PDF' or 'PDF Archive' "
-            f"(~13 MB) for instant 1-click Google Drive sync."
+            f"This individual file part is {raw_size_mb:.1f} MB, which exceeds Google Apps Script's "
+            f"35 MB single-upload limit (expanding to {raw_size_mb * 1.33:.1f} MB in base64)."
         )
 
     b64_content = base64.b64encode(raw_data).decode("utf-8")
@@ -170,16 +169,77 @@ def upload_via_apps_script(
         "folder": folder_name,
         "content": b64_content,
     }
+    if folder_id:
+        payload["folder_id"] = folder_id
 
     # Use a generous 5-minute timeout window (30s connect, 300s read/write) for large archives
     resp = requests.post(webhook_url, json=payload, timeout=(30, 300))
     resp.raise_for_status()
     data = resp.json()
 
+    returned_folder_id = data.get("folder_id", folder_id or "")
+    folder_url = data.get("folder_url", f"https://drive.google.com/drive/folders/{returned_folder_id}")
+
     return {
-        "folder_id": data.get("folder_id", ""),
-        "folder_url": data.get("folder_url", f"https://drive.google.com/drive/folders/{data.get('folder_id', '')}"),
+        "folder_id": returned_folder_id,
+        "folder_url": folder_url,
         "file_url": data.get("file_url", ""),
         "folder_name": folder_name,
+    }
+
+
+def automate_chunked_drive_export(
+    parts: list[tuple[io.BytesIO, str, str]],
+    batch_folder_name: str,
+    credentials_info: dict | None = None,
+    parent_folder_id: str | None = None,
+    webhook_url: str | None = None,
+    progress_callback: object | None = None,
+) -> dict[str, str]:
+    """
+    Sequential Gateway Uploader:
+    Streams multiple file parts sequentially into the exact same Google Drive batch folder.
+    Guarantees no single request exceeds cloud limits and eliminates timeouts.
+    """
+    total_parts = len(parts)
+    if total_parts == 0:
+        raise ValueError("No parts to upload.")
+
+    folder_id: str | None = None
+    folder_url: str = ""
+    service = None
+
+    if not webhook_url:
+        if not credentials_info:
+            raise ValueError("Neither credentials_info nor webhook_url was provided.")
+        service = get_drive_service(credentials_info)
+        folder_id, folder_url = create_drive_folder(service, batch_folder_name, parent_folder_id)
+
+    last_file_url = ""
+
+    for idx, (p_bytes, p_filename, p_mime) in enumerate(parts, 1):
+        if progress_callback and callable(progress_callback):
+            progress_callback(idx, total_parts, p_filename)
+
+        if webhook_url:
+            res = upload_via_apps_script(
+                file_bytes=p_bytes,
+                filename=p_filename,
+                folder_name=batch_folder_name,
+                webhook_url=webhook_url,
+                folder_id=folder_id,
+            )
+            folder_id = res.get("folder_id") or folder_id
+            folder_url = res.get("folder_url") or folder_url
+            last_file_url = res.get("file_url") or last_file_url
+        else:
+            last_file_url = upload_file_to_folder(service, p_bytes, p_filename, folder_id, p_mime)
+
+    return {
+        "folder_id": folder_id or "",
+        "folder_url": folder_url,
+        "file_url": last_file_url,
+        "folder_name": batch_folder_name,
+        "total_parts": str(total_parts),
     }
 

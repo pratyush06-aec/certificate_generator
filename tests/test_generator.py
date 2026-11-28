@@ -129,6 +129,22 @@ class TestCertificateGenerator(unittest.TestCase):
                 font_path=self.font_path,
             )
 
+    def test_export_batch_in_parts(self):
+        from core.generator import export_batch_in_parts
+        names = [f"Participant {i}" for i in range(1, 11)]
+        # Split 10 names with max 4 names per part -> 3 parts (4, 4, 2)
+        parts = export_batch_in_parts(
+            template=self.template,
+            names=names,
+            font_path=self.font_path,
+            format_type="png_zip",
+            max_names_per_part=4,
+        )
+        self.assertEqual(len(parts), 3)
+        self.assertIn("part1_of_3", parts[0][1])
+        self.assertIn("part2_of_3", parts[1][1])
+        self.assertIn("part3_of_3", parts[2][1])
+
 
 if __name__ == "__main__":
     unittest.main()
